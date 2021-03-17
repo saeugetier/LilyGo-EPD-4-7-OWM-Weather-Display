@@ -1,117 +1,21 @@
-# LilyGo-EPD-4-7-OWM-Weather-Display
-Using the LilyGo EPD 4.7" display to show OWM Weather Data
+<h1 align = "center">🌟LilyGo E-Paper 🌟</h1>
 
-Version 2.72
-1. Improved Icon shapes and positioning
-2. Adjusted Forecast Weather function to improve readability
+## **English | [中文](./README_CN.MD)**
 
-Version 2.71
-1. Which implemented OWM onecall API
-2. Improved all weather icons
-3. Added sunrise and sunset icons
-4. Added UV index and icon
-5. Added Feels-Like temperature if wind speed > 0
-6. Now now uses LAT/LON for weather location needed for the onecall API call, infact all OWM API calls are better supported with LAT/LON
-7. Added one mopre forecast period, so now displays 24-hours ahead
-8. *** NOTE: You need to update **forecast_record.h and owm_credentials.h** from here
-9. Add sunset.h, sunrise,h and moon.h to the sketch folder
+- The driver and sample program are from [vroland/epdiy](https://github.com/vroland/epdiy)
 
-Select board type: 'ESP32 Dev Module'
-Ensure 'PSRAM' is Enabled
+<h3 align = "left">Quick start:</h3>
 
-Creating images:
+- Install the [Arduino IDE](https://www.arduino.cc/en/Main/Software). Note: Later instructions may not work if you use Arduino via Flatpak.
+- Download a zipfile from github using the "Download ZIP" button and install it using the IDE ("Sketch" -> "Include Library" -> "Add .ZIP Library...", OR:
+- Clone this git repository into your sketchbook/libraries folder. For more info, see https://www.arduino.cc/en/Guide/Libraries
+- Choose `ESP32 Dev Module` for the board
+- ("File" -> "Examples" -> "LilyGoEPD47" -> "demo") in the Arduino IDE
+- Select the correct port and click upload
 
-1.  On Windows PC install Python 3.91 or later, find it here: https://www.python.org/downloads/
 
-2.  Install Python
 
-5.  Create an accessible folder e.g. EPD47 e.g. C:\EPD47   ***Note this folder must be accessible to the cmd pompt
-    A better location might be in your Documents folder usually located at C\Your-Username\Documents, example:
-    Directory of C:\Users\david\EPD47
 
-6.  Copy your source .JPG images to the folder e.g. sunny.jpg
 
-7.  Transfer the following files to your EPD47 folder - imgconvert.py and fontconvert.py they are located in the EDP47 Library script folder
 
-8.  Install Python 3.91, start a Windows cmd prompt, and chage directory to the folder EPD47:
-    cd C:\Users\david\EPD47
 
-9.  To create an image for display, enter this at the command prompt:
-
-    **imgconvert.py -i sourceimagename.jpg - n requiredname -o outputfile.h**
-
-10. Example convert sunny.jpg to sunny.h
-
-    **imgconvert.py -n sunny -i sunny.jpg -o sunny.h**
-
-11. The image file is now created, move the 'sunny.h' file into your sketch folder and include the file in your code like this #include "sunny.h"
-
-12. Draw the image like this:
-
-DrawSunnyImage(x, y);
-
-void DrawSunnyImage(int x, int y) {
-  Rect_t area = {
-    .x = x, .y = y, .width  = sunny_width, .height =  sunny_height
-  };
-  epd_draw_grayscale_image(area, (uint8_t *) sunny_data);
-}
-
-Creating fonts:
-1.  On Windows PC install Python 3.91 or later, find it here: https://www.python.org/downloads/
-
-2.  Install Python
-
-3.  Find a suitable Font Family e.g google opensans.ttf
-    https://fonts.google.com/specimen/Open+Sans
-
-4.  Download the Font Family file
-
-5.  Create an accessible folder e.g. EPD47 e.g. C:\EPD47   ***Note this folder must be accessible to the cmd pompt
-    A better location might be in your Documents folder usually located at C\Your-Username\Documents, example:
-    Directory of C:\Users\david\EPD47
-
-6.  Unzip all *.ttf files to the EPD47 folder, it now has all types of font files.ttf of the chosen font, e.g. regular, bold italic, etc
-
-    29/01/2021  11:24           595,329 Open_Sans.zip
-    
-    29/01/2021  11:24           104,120 OpenSans-Bold.ttf
-    
-    29/01/2021  11:24            92,628 OpenSans-BoldItalic.ttf
-    
-    29/01/2021  11:24           102,076 OpenSans-ExtraBold.ttf
-    
-    29/01/2021  11:24            92,772 OpenSans-ExtraBoldItalic.ttf
-    
-    29/01/2021  11:24            92,240 OpenSans-Italic.ttf
-    
-    29/01/2021  11:24           101,696 OpenSans-Light.ttf
-    
-    29/01/2021  11:24            92,488 OpenSans-LightItalic.ttf
-    
-    29/01/2021  11:24            96,932 OpenSans-Regular.ttf
-    
-    29/01/2021  11:24           100,820 OpenSans-SemiBold.ttf
-    
-    29/01/2021  11:24            92,180 OpenSans-SemiBoldItalic.ttf
-    
-7.  Transfer the following files to your EPD47 folder - **imgconvert.py** and **fontconvert.py** they are located in the EDP47 Library script folder
-
-8.  Install Python 3.91, start a Windows cmd prompt, and chage directory to the folder EPD47:
-    cd C:\Users\david\EPD47
-
-9.  To create a Regular 10-point font, enter this at the command prompt:
-
-    **fontconvert.py OpenSans10 10 OpenSans-Regular.ttf > opensans10.h**
-
-    *** Make sure the Font names are like this: 'OpenSansBnn' note the capitlised O and S and B
-
-10. To create a Bold 10-point font, enter this at the command prompt:
-    
-    **fontconvert.py OpenSans10B 10  OpenSans-Bold.ttf > opensans10b.h**
-
-11. To create a Bold 24-point font, enter this at the command prompt:
-    
-    **fontconvert.py OpenSans24B 24 OpenSans-Bold.ttf > opensans24b.h**
-
-12. The font files are now created, copy them to your sketch folder for use e.g. setFont(fontname);
