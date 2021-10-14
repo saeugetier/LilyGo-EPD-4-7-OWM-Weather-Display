@@ -2,7 +2,7 @@ const bool DebugDisplayUpdate = false;
 
 // Change to your WiFi credentials
 const char* ssid     = "xinyuan";
-const char* password = "xinyuan12345678";
+const char* password = "xinyuanxxxxxxx";
 
 // Use your own API key by signing up for a free developer account at https://openweathermap.org/
 String apikey       = "9fa347b74b167c2e255234f0dc415aa9";                      // See: https://openweathermap.org/
