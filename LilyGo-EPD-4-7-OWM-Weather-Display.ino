@@ -909,7 +909,12 @@ void DrawBattery(int x, int y)
         Serial.printf("eFuse Vref:%u mV", adc_chars.vref);
         vref = adc_chars.vref;
     }
-    float voltage = analogRead(36) / 4096.0 * 6.566 * (vref / 1000.0);
+#if CONFIG_IDF_TARGET_ESP32
+    const uint8_t bat_adc_pin = 36;
+#else
+    const uint8_t bat_adc_pin = 14;
+#endif
+    float voltage = analogRead(bat_adc_pin) / 4096.0 * 6.566 * (vref / 1000.0);
     if (voltage > 1)
     { // Only display if there is a valid reading
         Serial.println("\nVoltage = " + String(voltage));
