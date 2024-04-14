@@ -11,6 +11,7 @@
 
 #include <ArduinoJson.h> // https://github.com/bblanchon/ArduinoJson
 #include <HTTPClient.h>  // In-built
+#include <WiFiClientSecure.h>
 
 #include <WiFi.h> // In-built
 #include <SPI.h>  // In-built
@@ -18,9 +19,12 @@
 #include "SPIFFS.h"
 #include "FS.h"
 
+#include <CSV_Parser.h>
+
 #include "owm_credentials.h"
 #include "forecast_record.h"
-#include "lang.h"
+#include "event_record.h"
+#include "lang_de.h"
 #include "web.h"
 
 #define SCREEN_WIDTH EPD_WIDTH
@@ -60,6 +64,7 @@ int wifi_signal, CurrentHour = 0, CurrentMin = 0, CurrentSec = 0, EventCnt = 0, 
 
 Forecast_record_type WxConditions[1];
 Forecast_record_type WxForecast[max_readings];
+Event_record_type Events[4];
 
 float pressure_readings[max_readings]    = {0};
 float temperature_readings[max_readings] = {0};
@@ -83,6 +88,8 @@ long Delta         = 30; // ESP32 rtc speed compensation, prevents display at xx
 
 GFXfont currentFont;
 uint8_t *framebuffer;
+
+extern const uint8_t rootca_crt_bundle_start[] asm("_binary_data_cert_x509_crt_bundle_bin_start");
 
 void BeginSleep()
 {
@@ -198,6 +205,9 @@ void setup()
         ntpServer = json1["ntp"]["server"].as<String>();
         Timezone = json1["ntp"]["timezone"].as<String>();
 
+        calendarServer = json1["GoogleCalendar"]["server"].as<String>();
+        calendarApikey = json1["GoogleCalendar"]["apikey"].as<String>();
+        
         // WakeupHour = strtok(json1["schedule_power"]["on_time"].as<const char *>());
         // SleepHour  = json1["schedule_power"]["off_time"].as<String>();
 
@@ -213,22 +223,29 @@ void setup()
                 byte Attempts = 1;
                 bool RxWeather = false;
                 bool RxForecast = false;
-                WiFiClient client; // wifi client object
-                while ((RxWeather == false || RxForecast == false) && Attempts <= 2)
+                bool RxCalendar = false;
+                WiFiClient client;
+                WiFiClientSecure clientSecure; // wifi client sercure object
+                clientSecure.setCACertBundle(rootca_crt_bundle_start);
+                //clientSecure.setInsecure();
+                while ((RxWeather == false || RxForecast == false || RxCalendar == false) && Attempts <= 2)
                 { // Try up-to 2 time for Weather and Forecast data
                     if (RxWeather == false)
                         RxWeather = obtainWeatherData(client, "weather");
                     if (RxForecast == false)
                         RxForecast = obtainWeatherData(client, "forecast");
+                    if (RxCalendar == false)
+                        RxCalendar = obtainCalendarData(clientSecure);
                     Attempts++;
                 }
                 Serial.println("Received all weather data...");
-                if (RxWeather && RxForecast)
+                if (RxWeather && RxForecast && RxCalendar)
                 {                       // Only if received both Weather or Forecast proceed
                     StopWiFi();         // Reduces power consumption
                     epd_poweron();      // Switch on EPD display
                     epd_clear();        // Clear the screen
                     DisplayWeather();   // Display the weather data
+                    DisplayCalendar();  // Display the Calendar
                     edp_update();       // Update the display to show the information
                     epd_poweroff_all(); // Switch off all power to EPD
                 }
@@ -402,6 +419,61 @@ bool obtainWeatherData(WiFiClient &client, const String &RequestType)
     return true;
 }
 
+bool obtainCalendarData(WiFiClientSecure& client)
+{
+    client.stop();    
+    Serial.println("Obtain calendar");    
+    if (!client.connect(calendarServer.c_str(), 443)) {
+        Serial.print(calendarServer);
+        Serial.println(" - Connection failed!");
+        client.stop();
+        return false;
+    };
+    client.stop();
+    HTTPClient http;
+    http.setTimeout(20000);
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    String uri = "/macros/s/" + calendarApikey + "/exec";
+    http.begin(client, "https://" + calendarServer + uri );
+    int httpCode = http.GET();
+    
+    if (httpCode == HTTP_CODE_OK)
+    {
+        Serial.print("Got data: ");        
+        CSV_Parser csv(http.getString().c_str(), "sss-", false, ';' );
+
+        for(uint8_t i = 0; i < 4; i++)
+        {
+            if(i < csv.getRowsCount())
+            {
+                Events[i].empty = false;
+                Events[i].StartDate =  ((char**)csv[0])[i];
+                Events[i].EndDate =  ((char**)csv[1])[i];
+                Events[i].Name =  ((char**)csv[2])[i];
+                Serial.printf("Found Event: %s\r\n", Events[i].Name);
+            }
+            else
+            {
+                Events[i].empty = true;
+            }
+        }
+
+        client.stop();
+        http.end();
+        return true;
+    }
+    else
+    {
+        Serial.printf("Calendar connection failed, error: %s\r\n", http.errorToString(httpCode).c_str());
+        client.stop();
+        http.end();
+        return false;
+    }
+
+    http.end();
+    return true;
+}
+
 float mm_to_inches(float value_mm)
 {
     return 0.0393701 * value_mm;
@@ -463,11 +535,40 @@ void DisplayWeather()
 {                                               // 4.7" e-paper display is 960x540 resolution
     DisplayStatusSection(600, 20, wifi_signal); // Wi-Fi signal strength and Battery voltage
     DisplayGeneralInfoSection();                // Top line of the display
-    DisplayDisplayWindSection(137, 150, WxConditions[0].Winddir, WxConditions[0].Windspeed, 100);
-    DisplayAstronomySection(5, 255);     // Astronomy section Sun rise/set, Moon phase and Moon icon
-    DisplayMainWeatherSection(320, 110); // Centre section of display for Location, temperature, Weather report, current Wx Symbol
-    DisplayWeatherIcon(810, 130);        // Display weather icon    scale = Large;
+    DisplayDisplayWindSection(137, 335, WxConditions[0].Winddir, WxConditions[0].Windspeed, 100);
+    DisplayAstronomySection(5, 440);     // Astronomy section Sun rise/set, Moon phase and Moon icon
+    DisplayMainWeatherSection(55, 100); // Centre section of display for Location, temperature, Weather report, current Wx Symbol
+    DisplayWeatherIcon(320, 100);        // Display weather icon    scale = Large;
     DisplayForecastSection(320, 220);    // 3hr forecast boxes
+}
+
+void DisplayCalendar()
+{
+    DisplayCalendarEntries(415, 40, 530);
+}
+
+void DisplayCalendarEntries(int x, int y, int width)
+{
+    drawRect(x, y, width, 200, Black);
+    drawLine(x, y+50, x+width, y+50, Black);
+    drawLine(x, y+100, x+width, y+100, Black);
+    drawLine(x, y+150, x+width, y+150, Black);
+    for(int i = 0; i < 4; i++)
+    {
+        setFont(OpenSans18B);
+        if(Events[i].empty)
+        {
+            drawString(x+5, y + i * 50, "Kein Eintrag", LEFT);
+        }
+        else
+        {
+            drawString(x+5, y + 50 * i, Events[i].Name, LEFT);
+            setFont(OpenSans10B);
+            drawString(x+width-5, y + 50 * i, Events[i].StartDate, RIGHT);
+            drawString(x+width-5, y+25 + 50 * i, Events[i].EndDate, RIGHT);
+        }
+    }
+    
 }
 
 void DisplayGeneralInfoSection()
@@ -633,7 +734,7 @@ void DisplayForecastWeather(int x, int y, int index)
 
 void DisplayAstronomySection(int x, int y)
 {
-    setFont(OpenSans10B);
+    setFont(OpenSans8B);
     drawString(x + 5, y + 30, ConvertUnixTime(WxConditions[0].Sunrise).substring(0, 5) + " " + TXT_SUNRISE, LEFT);
     drawString(x + 5, y + 50, ConvertUnixTime(WxConditions[0].Sunset).substring(0, 5) + " " + TXT_SUNSET, LEFT);
     time_t now = time(NULL);
@@ -642,7 +743,7 @@ void DisplayAstronomySection(int x, int y)
     const int month_utc = now_utc->tm_mon + 1;
     const int year_utc = now_utc->tm_year + 1900;
     drawString(x + 5, y + 70, MoonPhase(day_utc, month_utc, year_utc, Hemisphere), LEFT);
-    DrawMoon(x + 160, y - 15, day_utc, month_utc, year_utc, Hemisphere);
+    DrawMoon(x + 130, y - 15, day_utc, month_utc, year_utc, Hemisphere);
 }
 
 void DrawMoon(int x, int y, int dd, int mm, int yy, String hemisphere)
@@ -758,9 +859,9 @@ void DisplayForecastSection(int x, int y)
     int gy = (SCREEN_HEIGHT - gheight - 30);
     int gap = gwidth + gx;
     // (x,y,width,height,MinValue, MaxValue, Title, Data Array, AutoScale, ChartMode)
-    DrawGraph(gx + 0 * gap, gy, gwidth, gheight, 900, 1050, Units == "M" ? TXT_PRESSURE_HPA : TXT_PRESSURE_IN, pressure_readings, max_readings, autoscale_on, barchart_off);
-    DrawGraph(gx + 1 * gap, gy, gwidth, gheight, 10, 30, Units == "M" ? TXT_TEMPERATURE_C : TXT_TEMPERATURE_F, temperature_readings, max_readings, autoscale_on, barchart_off);
-    DrawGraph(gx + 2 * gap, gy, gwidth, gheight, 0, 100, TXT_HUMIDITY_PERCENT, humidity_readings, max_readings, autoscale_off, barchart_off);
+    DrawGraph(gx + 1 * gap, gy, gwidth, gheight, 900, 1050, Units == "M" ? TXT_PRESSURE_HPA : TXT_PRESSURE_IN, pressure_readings, max_readings, autoscale_on, barchart_off);
+    DrawGraph(gx + 2 * gap, gy, gwidth, gheight, 10, 30, Units == "M" ? TXT_TEMPERATURE_C : TXT_TEMPERATURE_F, temperature_readings, max_readings, autoscale_on, barchart_off);
+    //DrawGraph(gx + 2 * gap, gy, gwidth, gheight, 0, 100, TXT_HUMIDITY_PERCENT, humidity_readings, max_readings, autoscale_off, barchart_off);
     if (SumOfPrecip(rain_readings, max_readings) >= SumOfPrecip(snow_readings, max_readings))
         DrawGraph(gx + 3 * gap + 5, gy, gwidth, gheight, 0, 30, Units == "M" ? TXT_RAINFALL_MM : TXT_RAINFALL_IN, rain_readings, max_readings, autoscale_on, barchart_on);
     else
