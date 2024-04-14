@@ -6,17 +6,21 @@
 	"OpenWeather": {
 		"apikey": "Your Open Weather key",
 		"server": "api.openweathermap.org",
-		"country": "CN",
-		"city": "shenzhen",
+		"country": "DE",
+		"city": "Stuttgart",
 		"hemisphere": "north",
 		"units": "M"
 	},
+	"GoogleCalendar": {
+		"apikey": "Your Application Path",
+		"server": "script.google.com"
+	},
 	"ntp": {
-		"server": "0.asia.pool.ntp.org",
-		"timezone": ""
+		"server": "0.de.pool.ntp.org",
+		"timezone": "CET-1CEST,M3.5.0,M10.5.0/3"
 	},
 	"schedule_power": {
-		"on_time": "17:42",
-		"off_time": "17:42"
+        "on_time": "08:00",
+        "off_time": "23:00"
 	}
 }
