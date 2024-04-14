@@ -89,7 +89,7 @@ long Delta         = 30; // ESP32 rtc speed compensation, prevents display at xx
 GFXfont currentFont;
 uint8_t *framebuffer;
 
-extern const uint8_t rootca_crt_bundle_start[] asm("_binary_data_cert_x509_crt_bundle_bin_start");
+extern const uint8_t rootca_crt_bundle_start[] asm("_binary_cert_x509_crt_bundle_bin_start");
 
 void BeginSleep()
 {
