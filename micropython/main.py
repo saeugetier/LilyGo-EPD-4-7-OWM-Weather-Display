@@ -47,7 +47,7 @@ weather = None
 forcast = None
 
 max_readings = const(24)
-Language = "EN"
+Language = "DE"
 
 def StartWiFi():
     global wifi_signal
@@ -55,9 +55,13 @@ def StartWiFi():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     wlan.config(reconnects=3)
-    for _ in range(0, 3):
+    for _ in range(0, 6):
         if not wlan.isconnected():
-            wlan.connect(ssid, password)
+            try:
+                wlan.connect(ssid, password)
+            except OSError as e:
+                print("Retry\r\n")
+                pass    
             sleep(1)
     if wlan.isconnected():
         wifi_signal = wlan.status('rssi')
@@ -134,8 +138,8 @@ if __name__ == "__main__":
     import ui
     import gc
     from web import setupWEB
-    adc = ADC(Pin(36))
-    boot = Pin(35, Pin.IN)
+    adc = ADC(Pin(14))
+    boot = Pin(21, Pin.IN)
     gc.enable()
 
     if boot.value() == 0:
@@ -159,7 +163,7 @@ if __name__ == "__main__":
     ntpServer = config["ntp"]["server"]
     Timezone = config["ntp"]["timezone"]
 
-    buffer = [ 0 for i in range(0, int(960 * 540 / 2)) ]
+    buffer = bytearray(int(960 * 540 / 2))
     fb = FrameBuffer(buffer, 960, 540)
     fb.fill(255)
     ui.InitUI(fb)
@@ -192,13 +196,18 @@ if __name__ == "__main__":
             ui.DisplayWeather(weather, forcast, wifi_signal, adc.read()/4096.0 * 5)
             try:
                 from epd import EPD47
-                e = EPD47()
-                e.power(True)
-                e.clear()
-                e.bitmap(buffer, 0, 0, 960, 540)
-                e.power(False)
-                del e
+                print("Found EPaper\r\n")
             except:
-                print("The current parser is not micropython")
+                print("The current parser is not micropython - nain")
+            e = EPD47()
+            e.power(True)
+            print("Clear EPaper\r\n")
+            e.clear()
+            print("Show buffer on EPaper\r\n")
+            e.bitmap(buffer, 0, 0, 960, 540)
+            print("Power off EPaper\r\n")
+            e.power(False)
+            del e
+            
     BeginSleep()
 
